@@ -1,4 +1,4 @@
 colorama
-dotenv
-openai
+dotenv-python
 ffmpeg-python
+openai
