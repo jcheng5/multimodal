@@ -40,7 +40,7 @@ def decode_input(input_path: PurePath, fps: int = 2) -> DecodedInput:
         )
         .output(
             str(audio),
-            loglevel="quiet",
+            loglevel="error",
             **{
                 # Use 64k bitrate for smaller file
                 "b:a": "64k",
@@ -54,7 +54,7 @@ def decode_input(input_path: PurePath, fps: int = 2) -> DecodedInput:
         ffmpeg.input(str(input_path))
         .output(
             str(PurePath(outdir.name) / "frame-%04d.jpg"),
-            loglevel="quiet",
+            loglevel="error",
             **{
                 # Use fps as specified, scale image to fit within 512x512
                 "vf": f"fps={fps},scale='if(gt(iw,ih),512,-1)':'if(gt(ih,iw),512,-1)'",
@@ -63,8 +63,9 @@ def decode_input(input_path: PurePath, fps: int = 2) -> DecodedInput:
         )
         .run()
     )
-    images = tuple(Path(outdir.name).glob("*.jpg"))
-    return DecodedInput(audio, images, outdir)
+    images = list(Path(outdir.name).glob("*.jpg"))
+    images.sort()
+    return DecodedInput(audio, tuple(images), outdir)
 
 
 if __name__ == "__main__":

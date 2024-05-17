@@ -50,7 +50,19 @@ with input:
                             for image in images
                         ],
                     ],
-                }
+                },
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "The images are frames of a video at 2 frames per second. "
+                            "The user doesn't know the video is split into frames, "
+                            "so make sure your video refers to these images collectively as "
+                            '"the video", not "the images" or "the video frames".',
+                        }
+                    ],
+                },
             ],
             max_tokens=300,
         )
