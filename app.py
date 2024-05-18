@@ -3,12 +3,13 @@ import os
 import tempfile
 from pathlib import Path
 
-from openai import AsyncOpenAI
 from htmltools import HTMLDependency
+from openai import AsyncOpenAI
 from shiny import reactive
 from shiny.express import input, render, ui
 
 from query import process_video
+from utils import NamedTemporaryFile
 
 client = AsyncOpenAI()
 
@@ -29,9 +30,9 @@ async def show_clip():
     clip = input.clip()
     mime_type = clip["type"]
     bytes = base64.b64decode(clip["bytes"])
-    with tempfile.NamedTemporaryFile(suffix=".mkv") as file:
+    with NamedTemporaryFile(suffix=".mkv", delete_on_close=False) as file:
         file.write(bytes)
-        file.flush()
+        file.close()
 
         with ui.Progress() as p:
 
@@ -44,5 +45,5 @@ async def show_clip():
                 src=mp3_data_uri,
                 controls=True,
                 autoplay=True,
-                style="display: block; margin: 0 auto;",
+                style="display: block; margin: 0 auto; visibility: hidden;",
             )

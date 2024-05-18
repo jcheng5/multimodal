@@ -1,6 +1,7 @@
 import base64
 import contextlib
 import os
+import tempfile
 import time
 
 import colorama
@@ -26,3 +27,52 @@ def file_to_data_uri(file_path, mime_type):
     with open(file_path, "rb") as file:
         encoded_string = base64.b64encode(file.read()).decode("utf-8")
         return f"data:{mime_type};base64,{encoded_string}"
+
+
+class NamedTemporaryFile(contextlib.AbstractContextManager):
+    """
+    tempfile.NamedTemporaryFile with an additional `delete_on_close` parameter.
+
+    The `delete_on_close` parameter was only added in Python 3.12, but we badly
+    need it on Windows: because file access on Windows is exclusive, we can't
+    write to and then read from a file without closing it in between. But
+    without `delete_on_close`, the file is deleted on close.
+    
+    This class is a thin shim around tempfile.NamedTemporaryFile that adds the
+    parameter for older Python versions.
+    """
+
+    def __init__(
+        self,
+        mode: str = "w+b",
+        buffering: int = -1,
+        encoding: str = None,
+        newline: str = None,
+        suffix: str = "",
+        prefix: str = "tmp",
+        dir: str = None,
+        delete: bool = True,
+        *,
+        errors: str = None,
+        delete_on_close: bool = True,
+    ):
+        self._needs_manual_delete = delete and not delete_on_close
+        self._file = tempfile.NamedTemporaryFile(
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            newline=newline,
+            suffix=suffix,
+            prefix=prefix,
+            dir=dir,
+            delete=delete and delete_on_close,
+            errors=errors,
+        )
+
+    def __enter__(self) -> tempfile.NamedTemporaryFile:
+        return self._file.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._file.__exit__(exc_type, exc_val, exc_tb)
+        if self._needs_manual_delete:
+            os.unlink(self._file.name)

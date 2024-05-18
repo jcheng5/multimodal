@@ -5,8 +5,8 @@ import tempfile
 import dotenv
 from openai import OpenAI
 
-from utils import timed, file_to_data_uri
 from input import decode_input
+from utils import file_to_data_uri, timed
 
 dotenv.load_dotenv()  # take environment variables from .env.
 

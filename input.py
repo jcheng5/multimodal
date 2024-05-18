@@ -1,6 +1,6 @@
 import os
 import tempfile
-from pathlib import PurePath, Path
+from pathlib import Path, PurePath
 
 import ffmpeg
 
@@ -19,15 +19,11 @@ class DecodedInput:
         self.images = images
         self.tmpdir = tmpdir
 
-    def dispose(self):
-        self.audio.unlink()
-        for image in self.images:
-            image.unlink()
-
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        print("Cleaning up " + self.tmpdir.name)
         self.tmpdir.cleanup()
 
 
