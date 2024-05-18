@@ -18,12 +18,11 @@
     "url": "https://github.com/jcheng5/multimodal/issues"
   },
   "homepage": "https://github.com/jcheng5/multimodal#readme",
-  "dependencies": {
-    "esbuild": "^0.21.3",
-    "tsc": "^2.0.4"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/jquery": "^3.5.30",
-    "@types/rstudio-shiny": "https://github.com/rstudio/shiny#v1.7.0"
+    "@types/rstudio-shiny": "https://github.com/rstudio/shiny#v1.7.0",
+    "esbuild": "^0.21.3",
+    "typescript": "^5.4.5"
   }
 }

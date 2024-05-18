@@ -1,6 +1,4 @@
 import base64
-import os
-import tempfile
 from pathlib import Path
 
 from htmltools import HTMLDependency
