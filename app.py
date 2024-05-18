@@ -1,11 +1,16 @@
-import tempfile
 import base64
 import os
+import tempfile
 from pathlib import Path
 
+from openai import AsyncOpenAI
 from htmltools import HTMLDependency
 from shiny import reactive
 from shiny.express import input, render, ui
+
+from query import process_video
+
+client = AsyncOpenAI()
 
 HTMLDependency(
     "multimodal",
@@ -19,17 +24,25 @@ HTMLDependency(
 ui.Tag("video-clipper", id="clip", style="width: 600px; margin: 1em auto;")
 
 
-@reactive.effect
-def show_clip():
+@render.ui
+async def show_clip():
     clip = input.clip()
     mime_type = clip["type"]
     bytes = base64.b64decode(clip["bytes"])
     with tempfile.NamedTemporaryFile(suffix=".mkv") as file:
         file.write(bytes)
         file.flush()
-        filename = file.name
-        print("filename: " + filename)
-        os.system(f"md5sum {filename}")
+
         with ui.Progress() as p:
-            p.set(message="Processing...")
-            os.system(f"python main.py {filename}")
+
+            mp3_data_uri = await process_video(
+                client,
+                file.name,
+                callback=lambda status: p.set(message=status),
+            )
+            return ui.tags.audio(
+                src=mp3_data_uri,
+                controls=True,
+                autoplay=True,
+                style="display: block; margin: 0 auto;",
+            )

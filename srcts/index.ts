@@ -34,6 +34,10 @@ class VideoClipperElement extends HTMLElement {
           object-fit: cover;
           background-color: #9a9;
         }
+        .panel-choosers, .panel-controls {
+          text-align: center;
+          margin-bottom: 1em;
+        }
       </style>
       <video muted></video>
       <div class="panel-choosers">
@@ -55,6 +59,13 @@ class VideoClipperElement extends HTMLElement {
     this.linkDownload = this.shadowRoot!.querySelector(".download")!;
   }
   connectedCallback() {
+    // Trigger camera/mic permissions
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      });
+
     this.video.src = this.getAttribute("src")!;
 
     (async () => {
