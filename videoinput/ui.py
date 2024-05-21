@@ -48,6 +48,35 @@ def input_video_clip(id: str, **kwargs):
             ),
             slot="settings",
         ),
+        ui.div(
+            ui.input_action_button(
+                "record",
+                ui.TagList(
+                    ui.tags.div(
+                        style="display: inline-block; background-color: red; width: 1rem; height: 1rem; border-radius: 100%; position: relative; top: 0.175rem; margin-right: 0.3rem;"
+                    ),
+                    "Record",
+                ),
+                style="display: block;",
+                class_="record-button btn-secondary px-3 mx-auto",
+                disabled=True,
+            ),
+            ui.input_action_button(
+                "stop",
+                ui.TagList(
+                    ui.tags.div(
+                        style="display: inline-block; background-color: currentColor; width: 1rem; height: 1rem; position: relative; top: 0.175rem; margin-right: 0.3rem;"
+                    ),
+                    "Stop",
+                ),
+                style="display: block;",
+                class_="stop-button btn-secondary px-3 mx-auto",
+                disabled=True,
+            ),
+            slot="recording-controls",
+            class_="btn-group",
+            **{"aria-label": "Recording controls"},
+        ),
         id=id,
         **kwargs,
     )

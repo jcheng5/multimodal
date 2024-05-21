@@ -1,9 +1,6 @@
 "use strict";
 
 // srcts/index.ts
-var DEBUG = false;
-var LABEL_RECORD = "Record";
-var LABEL_STOP = "Stop";
 var VideoClipperElement = class extends HTMLElement {
   constructor() {
     super();
@@ -13,40 +10,66 @@ var VideoClipperElement = class extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: block;
-          position: relative;
+          display: grid;
+          grid-template-rows: 1fr;
+          grid-template-columns: 1fr;
           width: 100%;
-          height: 100%;
+          height: min-content;
         }
         video {
+          grid-column: 1 / 2;
+          grid-row: 1 / 2;
           width: 100%;
-          height: 100%;
           object-fit: cover;
           background-color: #9a9;
         }
-        .panel-controls {
-          text-align: center;
-          margin-bottom: 1em;
+        video.mirrored {
+          transform: scaleX(-1);
+        }
+        .panel-settings {
+          grid-column: 1 / 2;
+          grid-row: 1 / 2;
+          justify-self: end;
+          margin: 0.5em;
+        }
+        .panel-buttons {
+          grid-column: 1 / 2;
+          grid-row: 1 / 2;
+          justify-self: end;
+          align-self: end;
+          margin: 0.5em;
         }
       </style>
       <video part="video" muted></video>
-      <slot name="settings"></slot>
-      <div class="panel-controls">
-        <button type="button" class="record" disabled>${LABEL_RECORD}</button>
-        <a class="download" style="display: none;">Download</button>
+      <div class="panel-settings">
+        <slot name="settings"></slot>
       </div>
-    `;
+      <div class="panel-buttons">
+        <slot name="recording-controls"></slot>
+      </div>
+  `;
     this.video = this.shadowRoot.querySelector("video");
-    this.buttonRecord = this.shadowRoot.querySelector(".record");
-    this.buttonRecord.addEventListener("click", () => {
-      this.toggleRecord();
-    });
-    this.linkDownload = this.shadowRoot.querySelector(".download");
   }
   connectedCallback() {
     (async () => {
       if (!this.initialized) {
         this.initialized = true;
+        this.buttonRecord = await retry(
+          () => this.querySelector(".record-button")
+        );
+        this.buttonStop = await retry(
+          () => this.querySelector(".stop-button")
+        );
+        this.buttonRecord.addEventListener("click", () => {
+          this.buttonRecord.disabled = true;
+          this.buttonStop.disabled = false;
+          this._beginRecord();
+        });
+        this.buttonStop.addEventListener("click", () => {
+          this._endRecord();
+          this.buttonStop.disabled = true;
+          this.buttonRecord.disabled = false;
+        });
         await this.initializeMediaInput();
         this.buttonRecord.disabled = false;
       }
@@ -70,6 +93,14 @@ var VideoClipperElement = class extends HTMLElement {
         deviceId: micId || void 0
       }
     });
+    const isSelfieCam = this.cameraStream.getVideoTracks()[0].getSettings().facingMode === "user";
+    this.video.classList.toggle("mirrored", isSelfieCam);
+    const aspectRatio = this.cameraStream.getVideoTracks()[0].getSettings().aspectRatio;
+    if (aspectRatio) {
+      this.video.style.aspectRatio = `${aspectRatio}`;
+    } else {
+      this.video.style.aspectRatio = "";
+    }
     this.video.srcObject = this.cameraStream;
     this.video.play();
     return {
@@ -78,14 +109,9 @@ var VideoClipperElement = class extends HTMLElement {
     };
   }
   async initializeMediaInput() {
-    while (!this.avSettingsMenu) {
-      const el = this.querySelector("av-settings-menu") ?? void 0;
-      if (el) {
-        this.avSettingsMenu = el;
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-    }
+    this.avSettingsMenu = await retry(
+      () => this.querySelector("av-settings-menu")
+    );
     const savedCamera = window.localStorage.getItem("multimodal-camera") || void 0;
     const savedMic = window.localStorage.getItem("multimodal-mic") || void 0;
     const { cameraId, micId } = await this.setMediaDevices(
@@ -118,15 +144,6 @@ var VideoClipperElement = class extends HTMLElement {
       );
     });
   }
-  toggleRecord() {
-    if (this.buttonRecord.textContent === LABEL_RECORD) {
-      this._beginRecord();
-      this.buttonRecord.textContent = LABEL_STOP;
-    } else {
-      this.buttonRecord.textContent = LABEL_RECORD;
-      this._endRecord(true);
-    }
-  }
   _beginRecord() {
     const options = {};
     this.recorder = new MediaRecorder(this.cameraStream, options);
@@ -150,11 +167,6 @@ var VideoClipperElement = class extends HTMLElement {
       setTimeout(() => {
         console.log("chunks: ", this.chunks.length);
         const blob = new Blob(this.chunks, { type: this.chunks[0].type });
-        if (DEBUG) {
-          this.linkDownload.style.display = "block";
-          this.linkDownload.href = URL.createObjectURL(blob);
-          this.linkDownload.download = "clip.mkv";
-        }
         const event = new BlobEvent("data", {
           data: blob
         });
@@ -246,18 +258,21 @@ var AVSettingsMenuElement = class extends HTMLElement {
   }
 };
 customElements.define("av-settings-menu", AVSettingsMenuElement);
-var lastKnownValue = /* @__PURE__ */ new WeakMap();
 var VideoClipperBinding = class extends Shiny.InputBinding {
+  constructor() {
+    super(...arguments);
+    this.lastKnownValue = /* @__PURE__ */ new WeakMap();
+  }
   find(scope) {
     return $(scope).find("video-clipper");
   }
   getValue(el) {
-    return lastKnownValue.get(el);
+    return this.lastKnownValue.get(el);
   }
   subscribe(el, callback) {
     el.addEventListener("data", async (ev) => {
       const blob = ev.data;
-      lastKnownValue.set(el, {
+      this.lastKnownValue.set(el, {
         type: blob.type,
         bytes: await base64(blob)
       });
@@ -275,4 +290,13 @@ async function base64(blob) {
     results.push(String.fromCharCode(...new Uint8Array(chunk)));
   }
   return btoa(results.join(""));
+}
+async function retry(fn, delayMillis = 0) {
+  while (true) {
+    const result = fn();
+    if (result !== null && result !== void 0) {
+      return result;
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMillis));
+  }
 }

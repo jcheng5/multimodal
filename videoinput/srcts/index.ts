@@ -1,14 +1,10 @@
 import { BindScope } from "rstudio-shiny/srcts/types/src/shiny/bind";
 
-const DEBUG = false;
-const LABEL_RECORD = "Record";
-const LABEL_STOP = "Stop";
-
 class VideoClipperElement extends HTMLElement {
   video: HTMLVideoElement;
   avSettingsMenu!: AVSettingsMenuElement;
-  buttonRecord: HTMLButtonElement;
-  linkDownload: HTMLAnchorElement;
+  buttonRecord!: HTMLButtonElement;
+  buttonStop!: HTMLButtonElement;
   initialized: boolean = false;
 
   cameraStream?: MediaStream;
@@ -23,40 +19,69 @@ class VideoClipperElement extends HTMLElement {
     this.shadowRoot!.innerHTML = `
       <style>
         :host {
-          display: block;
-          position: relative;
+          display: grid;
+          grid-template-rows: 1fr;
+          grid-template-columns: 1fr;
           width: 100%;
-          height: 100%;
+          height: min-content;
         }
         video {
+          grid-column: 1 / 2;
+          grid-row: 1 / 2;
           width: 100%;
-          height: 100%;
           object-fit: cover;
           background-color: #9a9;
         }
-        .panel-controls {
-          text-align: center;
-          margin-bottom: 1em;
+        video.mirrored {
+          transform: scaleX(-1);
+        }
+        .panel-settings {
+          grid-column: 1 / 2;
+          grid-row: 1 / 2;
+          justify-self: end;
+          margin: 0.5em;
+        }
+        .panel-buttons {
+          grid-column: 1 / 2;
+          grid-row: 1 / 2;
+          justify-self: end;
+          align-self: end;
+          margin: 0.5em;
         }
       </style>
       <video part="video" muted></video>
-      <slot name="settings"></slot>
-      <div class="panel-controls">
-        <button type="button" class="record" disabled>${LABEL_RECORD}</button>
-        <a class="download" style="display: none;">Download</button>
+      <div class="panel-settings">
+        <slot name="settings"></slot>
       </div>
-    `;
+      <div class="panel-buttons">
+        <slot name="recording-controls"></slot>
+      </div>
+  `;
     this.video = this.shadowRoot!.querySelector("video")!;
-    this.buttonRecord = this.shadowRoot!.querySelector(".record")!;
-    this.buttonRecord.addEventListener("click", () => {
-      this.toggleRecord();
-    });
-    this.linkDownload = this.shadowRoot!.querySelector(".download")!;
   }
   connectedCallback() {
     (async () => {
       if (!this.initialized) {
         this.initialized = true;
+
+        this.buttonRecord = await retry(
+          () => this.querySelector(".record-button") as HTMLButtonElement
+        );
+        this.buttonStop = await retry(
+          () => this.querySelector(".stop-button") as HTMLButtonElement
+        );
+
+        this.buttonRecord.addEventListener("click", () => {
+          this.buttonRecord.disabled = true;
+          this.buttonStop.disabled = false;
+          this._beginRecord();
+        });
+        this.buttonStop.addEventListener("click", () => {
+          this._endRecord();
+          this.buttonStop.disabled = true;
+          this.buttonRecord.disabled = false;
+        });
+
         await this.initializeMediaInput();
         this.buttonRecord.disabled = false;
       }
@@ -86,6 +111,19 @@ class VideoClipperElement extends HTMLElement {
       },
     });
 
+    const isSelfieCam =
+      this.cameraStream.getVideoTracks()[0].getSettings().facingMode === "user";
+    this.video.classList.toggle("mirrored", isSelfieCam);
+
+    /* Prevent the height from jumping around when switching cameras */
+    const aspectRatio = this.cameraStream
+      .getVideoTracks()[0]
+      .getSettings().aspectRatio;
+    if (aspectRatio) {
+      this.video.style.aspectRatio = `${aspectRatio}`;
+    } else {
+      this.video.style.aspectRatio = "";
+    }
     this.video.srcObject = this.cameraStream!;
     this.video.play();
 
@@ -96,14 +134,9 @@ class VideoClipperElement extends HTMLElement {
   }
 
   async initializeMediaInput() {
-    while (!this.avSettingsMenu) {
-      const el = this.querySelector("av-settings-menu") ?? undefined;
-      if (el) {
-        this.avSettingsMenu = el as AVSettingsMenuElement;
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-    }
+    this.avSettingsMenu = await retry(
+      () => this.querySelector("av-settings-menu") as AVSettingsMenuElement
+    );
 
     const savedCamera =
       window.localStorage.getItem("multimodal-camera") || undefined;
@@ -142,16 +175,6 @@ class VideoClipperElement extends HTMLElement {
     });
   }
 
-  toggleRecord() {
-    if (this.buttonRecord.textContent === LABEL_RECORD) {
-      this._beginRecord();
-      this.buttonRecord.textContent = LABEL_STOP;
-    } else {
-      this.buttonRecord.textContent = LABEL_RECORD;
-      this._endRecord(true);
-    }
-  }
-
   _beginRecord() {
     // Create a MediaRecorder object
     const options = {};
@@ -179,12 +202,6 @@ class VideoClipperElement extends HTMLElement {
       setTimeout(() => {
         console.log("chunks: ", this.chunks.length);
         const blob = new Blob(this.chunks, { type: this.chunks[0].type });
-
-        if (DEBUG) {
-          this.linkDownload.style.display = "block";
-          this.linkDownload.href = URL.createObjectURL(blob);
-          this.linkDownload.download = "clip.mkv";
-        }
 
         // emit blobevent
         const event = new BlobEvent("data", {
@@ -289,19 +306,21 @@ class AVSettingsMenuElement extends HTMLElement {
 }
 customElements.define("av-settings-menu", AVSettingsMenuElement);
 
-const lastKnownValue = new WeakMap<HTMLElement, unknown>();
-
 class VideoClipperBinding extends Shiny.InputBinding {
+  lastKnownValue = new WeakMap<HTMLElement, unknown>();
+
   find(scope: BindScope): JQuery<HTMLElement> {
     return $(scope).find("video-clipper");
   }
+
   getValue(el: HTMLElement): unknown {
-    return lastKnownValue.get(el);
+    return this.lastKnownValue.get(el);
   }
+
   subscribe(el: HTMLElement, callback: (value: boolean) => void): void {
     el.addEventListener("data", async (ev: Event) => {
       const blob = (ev as BlobEvent).data;
-      lastKnownValue.set(el, {
+      this.lastKnownValue.set(el, {
         type: blob.type,
         bytes: await base64(blob),
       });
@@ -312,6 +331,11 @@ class VideoClipperBinding extends Shiny.InputBinding {
 
 window.Shiny.inputBindings.register(new VideoClipperBinding(), "video-clipper");
 
+/**
+ * Encode a Blob as a base64 string
+ * @param blob The Blob to encode
+ * @returns A base64-encoded string
+ */
 async function base64(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer();
   const results = [];
@@ -321,4 +345,23 @@ async function base64(blob: Blob): Promise<string> {
     results.push(String.fromCharCode(...new Uint8Array(chunk)));
   }
   return btoa(results.join(""));
+}
+
+/**
+ * Retry the function until it returns a non-null, non-undefined value.
+ * @param fn A function that returns a value or null/undefined
+ * @param delayMillis Number of milliseconds to wait between retries
+ * @returns The first non-null, non-undefined value returned by `fn`
+ */
+async function retry<T>(
+  fn: () => T | null | undefined,
+  delayMillis = 0
+): Promise<T> {
+  while (true) {
+    const result = fn();
+    if (result !== null && result !== undefined) {
+      return result;
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMillis));
+  }
 }
