@@ -1,6 +1,6 @@
 # Video in, audio out
 
-This is a simple script that takes a video file as input, and turns it into text plus images in a form GPT-4o can understand. The response from the model is then read aloud.
+This is a [Shiny for Python](https://shiny.posit.co/py/) app for easily interacting with GPT-4o via short webcam recordings.
 
 ## Installation
 
