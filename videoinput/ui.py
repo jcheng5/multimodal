@@ -1,5 +1,18 @@
-from shiny import ui, module
+from pathlib import Path
+
 from faicons import icon_svg
+from htmltools import HTMLDependency
+from shiny import module, ui
+
+multimodal_dep = HTMLDependency(
+    "multimodal",
+    "0.0.1",
+    source={
+        "subdir": str(Path(__file__).parent / "dist"),
+    },
+    script={"src": "index.js"},
+    stylesheet={"href": "index.css"},
+)
 
 
 def input_video_clip(id: str, **kwargs):
@@ -7,6 +20,7 @@ def input_video_clip(id: str, **kwargs):
 
     return ui.Tag(
         "video-clipper",
+        multimodal_dep,
         ui.Tag(
             "av-settings-menu",
             ui.div(

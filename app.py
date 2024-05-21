@@ -1,27 +1,13 @@
 import base64
-from pathlib import Path
+import tempfile
 
 from faicons import icon_svg
-from htmltools import HTMLDependency
 from openai import AsyncOpenAI
-from shiny import reactive
 from shiny.express import input, render, ui
 
-from query import process_video
-from utils import NamedTemporaryFile
-from videoinput import input_video_clip
+from videoinput import input_video_clip, process_video
 
 client = AsyncOpenAI()
-
-HTMLDependency(
-    "multimodal",
-    "0.0.1",
-    source={
-        "subdir": str(Path(__file__).parent / "dist"),
-    },
-    script={"src": "index.js"},
-    stylesheet={"href": "index.css"},
-)
 
 input_video_clip("clip")
 
@@ -32,15 +18,17 @@ async def show_clip():
     mime_type = clip["type"]
     bytes = base64.b64decode(clip["bytes"])
     # TODO: Use correct file extension based on mime type
-    with NamedTemporaryFile(suffix=".mkv", delete_on_close=False) as file:
-        file.write(bytes)
-        file.close()
+    with tempfile.TemporaryDirectory() as tempdir:
+        filename = tempfile.mktemp(dir=tempdir, suffix=get_video_extension(mime_type))
+        with open(filename, "wb") as file:
+            file.write(bytes)
+            file.close()
 
         with ui.Progress() as p:
 
             mp3_data_uri = await process_video(
                 client,
-                file.name,
+                filename,
                 callback=lambda status: p.set(message=status),
             )
             return ui.tags.audio(
@@ -49,3 +37,21 @@ async def show_clip():
                 autoplay=True,
                 style="display: block; margin: 0 auto; visibility: hidden;",
             )
+
+
+def get_video_extension(mime_type: str) -> str:
+    mime_type = mime_type.split(";")[0].strip()
+
+    # Dictionary to map MIME types to file extensions
+    mime_to_extension = {
+        "video/webm": ".webm",
+        "video/mp4": ".mp4",
+        "video/ogg": ".ogv",
+        "video/x-matroska": ".mkv",
+        "video/avi": ".avi",
+        "video/mpeg": ".mpeg",
+        "video/quicktime": ".mov",
+    }
+
+    # Return the appropriate file extension for the given MIME type
+    return mime_to_extension.get(mime_type, "")
