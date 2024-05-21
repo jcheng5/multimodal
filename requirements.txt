@@ -1,5 +1,6 @@
 colorama
-python-dotenv
+faicons
 ffmpeg-python
 openai
+python-dotenv
 shiny

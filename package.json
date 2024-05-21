@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "esbuild srcts/index.ts --bundle --platform=node --outfile=dist/index.js",
-    "watch": "esbuild srcts/index.ts --bundle --platform=node --outfile=dist/index.js --watch"
+    "watch": "esbuild srcts/index.ts --bundle --platform=node --outfile=dist/index.js --watch",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",

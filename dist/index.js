@@ -14,6 +14,7 @@ var VideoClipperElement = class extends HTMLElement {
       <style>
         :host {
           display: block;
+          position: relative;
           width: 100%;
           height: 100%;
         }
@@ -23,28 +24,19 @@ var VideoClipperElement = class extends HTMLElement {
           object-fit: cover;
           background-color: #9a9;
         }
-        .panel-choosers, .panel-controls {
+        .panel-controls {
           text-align: center;
           margin-bottom: 1em;
         }
       </style>
-      <video muted></video>
-      <div class="panel-choosers">
-        <select class="camera-select">
-          <option value="" disabled selected>Loading...</option>
-        </select>
-        <select class="mic-select">
-          <option value="" disabled selected>Loading...</option>
-        </select>
-      </div>
+      <video part="video" muted></video>
+      <slot name="settings"></slot>
       <div class="panel-controls">
         <button type="button" class="record" disabled>${LABEL_RECORD}</button>
         <a class="download" style="display: none;">Download</button>
       </div>
     `;
     this.video = this.shadowRoot.querySelector("video");
-    this.selectCamera = this.shadowRoot.querySelector(".camera-select");
-    this.selectMic = this.shadowRoot.querySelector(".mic-select");
     this.buttonRecord = this.shadowRoot.querySelector(".record");
     this.buttonRecord.addEventListener("click", () => {
       this.toggleRecord();
@@ -52,10 +44,6 @@ var VideoClipperElement = class extends HTMLElement {
     this.linkDownload = this.shadowRoot.querySelector(".download");
   }
   connectedCallback() {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
-      stream.getTracks().forEach((track) => track.stop());
-    });
-    this.video.src = this.getAttribute("src");
     (async () => {
       if (!this.initialized) {
         this.initialized = true;
@@ -90,6 +78,14 @@ var VideoClipperElement = class extends HTMLElement {
     };
   }
   async initializeMediaInput() {
+    while (!this.avSettingsMenu) {
+      const el = this.querySelector("av-settings-menu") ?? void 0;
+      if (el) {
+        this.avSettingsMenu = el;
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
     const savedCamera = window.localStorage.getItem("multimodal-camera") || void 0;
     const savedMic = window.localStorage.getItem("multimodal-mic") || void 0;
     const { cameraId, micId } = await this.setMediaDevices(
@@ -97,17 +93,29 @@ var VideoClipperElement = class extends HTMLElement {
       savedMic
     );
     const devices = await navigator.mediaDevices.enumerateDevices();
-    populateDeviceSelector(this.selectCamera, devices, "videoinput", cameraId);
-    populateDeviceSelector(this.selectMic, devices, "audioinput", micId);
-    this.selectCamera.addEventListener("change", (e) => {
-      if (!this.selectCamera.value) return;
-      window.localStorage.setItem("multimodal-camera", this.selectCamera.value);
-      this.setMediaDevices(this.selectCamera.value, this.selectMic.value);
+    this.avSettingsMenu.setDevices(
+      devices.filter((dev) => dev.kind === "videoinput"),
+      devices.filter((dev) => dev.kind === "audioinput")
+    );
+    this.avSettingsMenu.setSelectedDevices(cameraId, micId);
+    this.avSettingsMenu.addEventListener("camera-change", (e) => {
+      if (!this.avSettingsMenu.cameraId) return;
+      window.localStorage.setItem(
+        "multimodal-camera",
+        this.avSettingsMenu.cameraId
+      );
+      this.setMediaDevices(
+        this.avSettingsMenu.cameraId,
+        this.avSettingsMenu.micId
+      );
     });
-    this.selectMic.addEventListener("change", (e) => {
-      if (!this.selectMic.value) return;
-      window.localStorage.setItem("multimodal-mic", this.selectMic.value);
-      this.setMediaDevices(this.selectCamera.value, this.selectMic.value);
+    this.avSettingsMenu.addEventListener("mic-change", (e) => {
+      if (!this.avSettingsMenu.micId) return;
+      window.localStorage.setItem("multimodal-mic", this.avSettingsMenu.micId);
+      this.setMediaDevices(
+        this.avSettingsMenu.cameraId,
+        this.avSettingsMenu.micId
+      );
     });
   }
   toggleRecord() {
@@ -157,28 +165,87 @@ var VideoClipperElement = class extends HTMLElement {
   }
 };
 customElements.define("video-clipper", VideoClipperElement);
-async function populateDeviceSelector(selectEl, devices, kind, currentDeviceId) {
-  selectEl.innerHTML = "";
-  for (const dev of devices) {
-    if (dev.kind === kind) {
-      const option = selectEl.ownerDocument.createElement("option");
-      option.value = dev.deviceId;
-      option.text = dev.label;
-      if (currentDeviceId && dev.deviceId === currentDeviceId) {
-        option.selected = true;
+var DeviceChangeEvent = class extends CustomEvent {
+  constructor(type, detail) {
+    super(type, { detail });
+  }
+};
+var AVSettingsMenuElement = class extends HTMLElement {
+  constructor() {
+    super();
+    this.addEventListener("click", (e) => {
+      if (e.target instanceof HTMLAnchorElement) {
+        const a = e.target;
+        if (a.classList.contains("camera-device-item")) {
+          this.setSelectedDevices(a.dataset.deviceId, void 0);
+          this.dispatchEvent(
+            new DeviceChangeEvent("camera-change", {
+              deviceId: a.dataset.deviceId
+            })
+          );
+        } else if (a.classList.contains("mic-device-item")) {
+          this.setSelectedDevices(void 0, a.dataset.deviceId);
+          this.dispatchEvent(
+            new DeviceChangeEvent("mic-change", {
+              deviceId: a.dataset.deviceId
+            })
+          );
+        }
       }
-      selectEl.appendChild(option);
+    });
+  }
+  setDevices(cameras, mics) {
+    const cameraEls = cameras.map((dev) => {
+      const li = this.ownerDocument.createElement("li");
+      const a = li.appendChild(this.ownerDocument.createElement("a"));
+      a.onclick = (e) => e.preventDefault();
+      a.href = "#";
+      a.textContent = dev.label;
+      a.dataset.deviceId = dev.deviceId;
+      a.className = "camera-device-item";
+      return li;
+    });
+    const cameraHeader = this.querySelector(".camera-header");
+    cameraHeader.after(...cameraEls);
+    const micEls = mics.map((dev) => {
+      const li = this.ownerDocument.createElement("li");
+      const a = li.appendChild(this.ownerDocument.createElement("a"));
+      a.onclick = (e) => e.preventDefault();
+      a.href = "#";
+      a.textContent = dev.label;
+      a.dataset.deviceId = dev.deviceId;
+      a.className = "mic-device-item";
+      return li;
+    });
+    const micHeader = this.querySelector(".mic-header");
+    micHeader.after(...micEls);
+  }
+  setSelectedDevices(cameraId, micId) {
+    if (cameraId) {
+      this.querySelectorAll("a.camera-device-item.active").forEach(
+        (a) => a.classList.remove("active")
+      );
+      this.querySelector(
+        `a.camera-device-item[data-device-id="${cameraId}"]`
+      )?.classList.add("active");
+    }
+    if (micId) {
+      this.querySelectorAll("a.mic-device-item.active").forEach(
+        (a) => a.classList.remove("active")
+      );
+      this.querySelector(
+        `a.mic-device-item[data-device-id="${micId}"]`
+      )?.classList.add("active");
     }
   }
-  if (selectEl.childElementCount === 0) {
-    const option = selectEl.ownerDocument.createElement("option");
-    option.text = "No devices found";
-    option.disabled = true;
-    option.value = "";
-    option.selected = true;
-    selectEl.appendChild(option);
+  get cameraId() {
+    return this.querySelector("a.camera-device-item.active")?.dataset.deviceId;
   }
-}
+  get micId() {
+    return this.querySelector("a.mic-device-item.active")?.dataset.deviceId;
+  }
+};
+customElements.define("av-settings-menu", AVSettingsMenuElement);
 var lastKnownValue = /* @__PURE__ */ new WeakMap();
 var VideoClipperBinding = class extends Shiny.InputBinding {
   find(scope) {

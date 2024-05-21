@@ -1,5 +1,7 @@
 /.venv/
 /__pycache__/
+/data/
 /node_modules/
+/rsconnect-python/
 /.env
 .DS_Store

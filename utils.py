@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import contextlib
 import os
@@ -37,7 +39,7 @@ class NamedTemporaryFile(contextlib.AbstractContextManager):
     need it on Windows: because file access on Windows is exclusive, we can't
     write to and then read from a file without closing it in between. But
     without `delete_on_close`, the file is deleted on close.
-    
+
     This class is a thin shim around tempfile.NamedTemporaryFile that adds the
     parameter for older Python versions.
     """
@@ -46,14 +48,14 @@ class NamedTemporaryFile(contextlib.AbstractContextManager):
         self,
         mode: str = "w+b",
         buffering: int = -1,
-        encoding: str = None,
-        newline: str = None,
+        encoding: str | None = None,
+        newline: str | None = None,
         suffix: str = "",
         prefix: str = "tmp",
-        dir: str = None,
+        dir: str | None = None,
         delete: bool = True,
         *,
-        errors: str = None,
+        errors: str | None = None,
         delete_on_close: bool = True,
     ):
         self._needs_manual_delete = delete and not delete_on_close

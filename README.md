@@ -29,3 +29,6 @@ pip install -r requirements.txt
 ```
 shiny run app.py --port 0 --launch-browser
 ```
+
+This will launch a browser window with a video preview. Press Record, speak your prompt, and press Stop. The video will be processed and the response will be read aloud.
+

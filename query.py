@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Optional
 
 import dotenv
 from openai import AsyncOpenAI
@@ -11,8 +11,11 @@ dotenv.load_dotenv()
 
 
 async def process_video(
-    client: AsyncOpenAI, filepath: str, callback: Callable[[str], None]
+    client: AsyncOpenAI, filepath: str, callback: Optional[Callable[[str], None]]
 ) -> None:
+    if callback is None:
+        callback = lambda _: None
+
     callback("Decoding input")
     input = decode_input(filepath, fps=2)
 
@@ -64,6 +67,7 @@ async def process_video(
         )
 
         callback("Encoding audio")
+        # TODO: Use correct file extension based on mime type
         with NamedTemporaryFile(suffix=".mp3", delete_on_close=False) as file:
             file.close()
             audio.write_to_file(file.name)
