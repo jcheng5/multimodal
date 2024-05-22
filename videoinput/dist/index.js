@@ -1,65 +1,87 @@
 "use strict";
 
-// srcts/index.ts
+// srcts/videoClipper.ts
 var VideoClipperElement = class extends HTMLElement {
   constructor() {
     super();
-    this.initialized = false;
     this.chunks = [];
     this.attachShadow({ mode: "open" });
     this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: grid;
-          grid-template-rows: 1fr;
-          grid-template-columns: 1fr;
-          width: 100%;
-          height: min-content;
-        }
-        video {
-          grid-column: 1 / 2;
-          grid-row: 1 / 2;
-          width: 100%;
-          object-fit: cover;
-          background-color: #9a9;
-        }
-        video.mirrored {
-          transform: scaleX(-1);
-        }
-        .panel-settings {
-          grid-column: 1 / 2;
-          grid-row: 1 / 2;
-          justify-self: end;
-          margin: 0.5em;
-        }
-        .panel-buttons {
-          grid-column: 1 / 2;
-          grid-row: 1 / 2;
-          justify-self: end;
-          align-self: end;
-          margin: 0.5em;
-        }
-      </style>
-      <video part="video" muted></video>
-      <div class="panel-settings">
-        <slot name="settings"></slot>
-      </div>
-      <div class="panel-buttons">
-        <slot name="recording-controls"></slot>
-      </div>
-  `;
+        <style>
+          :host {
+            display: grid;
+            grid-template-rows: 1fr;
+            grid-template-columns: 1fr;
+            width: 100%;
+            height: min-content;
+          }
+          video {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+            width: 100%;
+            object-fit: cover;
+            background-color: var(--video-clip-bg, black);
+            aspect-ratio: 16 / 9;
+            border-radius: var(--video-clip-border-radius, var(--bs-border-radius-lg));
+          }
+          video.mirrored {
+            transform: scaleX(-1);
+          }
+          .panel-settings {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+            justify-self: end;
+            margin: 0.5em;
+          }
+          .panel-buttons {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+            justify-self: end;
+            align-self: end;
+            margin: 0.5em;
+          }
+        </style>
+        <video part="video" muted></video>
+        <div class="panel-settings">
+          <slot name="settings"></slot>
+        </div>
+        <div class="panel-buttons">
+          <slot name="recording-controls"></slot>
+        </div>
+    `;
     this.video = this.shadowRoot.querySelector("video");
   }
   connectedCallback() {
     (async () => {
-      if (!this.initialized) {
-        this.initialized = true;
-        this.buttonRecord = await retry(
-          () => this.querySelector(".record-button")
-        );
-        this.buttonStop = await retry(
-          () => this.querySelector(".stop-button")
-        );
+      const slotSettings = this.shadowRoot.querySelector(
+        "slot[name=settings]"
+      );
+      slotSettings.addEventListener("slotchange", async () => {
+        this.avSettingsMenu = slotSettings.assignedElements()[0];
+        await this.#initializeMediaInput();
+        if (this.buttonRecord) {
+          this.buttonRecord.disabled = false;
+        }
+      });
+      const slotControls = this.shadowRoot.querySelector(
+        "slot[name=recording-controls]"
+      );
+      slotControls.addEventListener("slotchange", () => {
+        const findButton = (selector) => {
+          for (const el of slotControls.assignedElements()) {
+            if (el.matches(selector)) {
+              return el;
+            }
+            const sub = el.querySelector(selector);
+            if (sub) {
+              return sub;
+            }
+          }
+          return null;
+        };
+        this.buttonRecord = findButton(".record-button");
+        this.buttonStop = findButton(".stop-button");
+        this.buttonRecord.disabled = true;
         this.buttonRecord.addEventListener("click", () => {
           this.buttonRecord.disabled = true;
           this.buttonStop.disabled = false;
@@ -70,9 +92,7 @@ var VideoClipperElement = class extends HTMLElement {
           this.buttonStop.disabled = true;
           this.buttonRecord.disabled = false;
         });
-        await this.initializeMediaInput();
-        this.buttonRecord.disabled = false;
-      }
+      });
     })().catch((err) => {
       console.error(err);
     });
@@ -93,7 +113,7 @@ var VideoClipperElement = class extends HTMLElement {
         deviceId: micId || void 0
       }
     });
-    const isSelfieCam = this.cameraStream.getVideoTracks()[0].getSettings().facingMode === "user";
+    const isSelfieCam = true;
     this.video.classList.toggle("mirrored", isSelfieCam);
     const aspectRatio = this.cameraStream.getVideoTracks()[0].getSettings().aspectRatio;
     if (aspectRatio) {
@@ -108,54 +128,46 @@ var VideoClipperElement = class extends HTMLElement {
       micId: this.cameraStream.getAudioTracks()[0].getSettings().deviceId
     };
   }
-  async initializeMediaInput() {
-    this.avSettingsMenu = await retry(
-      () => this.querySelector("av-settings-menu")
-    );
-    const savedCamera = window.localStorage.getItem("multimodal-camera") || void 0;
-    const savedMic = window.localStorage.getItem("multimodal-mic") || void 0;
+  async #initializeMediaInput() {
+    const savedCamera = window.localStorage.getItem("multimodal-camera");
+    const savedMic = window.localStorage.getItem("multimodal-mic");
     const { cameraId, micId } = await this.setMediaDevices(
       savedCamera,
       savedMic
     );
     const devices = await navigator.mediaDevices.enumerateDevices();
-    this.avSettingsMenu.setDevices(
-      devices.filter((dev) => dev.kind === "videoinput"),
+    this.avSettingsMenu.setCameras(
+      devices.filter((dev) => dev.kind === "videoinput")
+    );
+    this.avSettingsMenu.setMics(
       devices.filter((dev) => dev.kind === "audioinput")
     );
-    this.avSettingsMenu.setSelectedDevices(cameraId, micId);
-    this.avSettingsMenu.addEventListener("camera-change", (e) => {
-      if (!this.avSettingsMenu.cameraId) return;
-      window.localStorage.setItem(
-        "multimodal-camera",
-        this.avSettingsMenu.cameraId
-      );
-      this.setMediaDevices(
+    this.avSettingsMenu.cameraId = cameraId;
+    this.avSettingsMenu.micId = micId;
+    const handleDeviceChange = async (deviceType, deviceId) => {
+      if (!deviceId) return;
+      window.localStorage.setItem(`multimodal-${deviceType}`, deviceId);
+      await this.setMediaDevices(
         this.avSettingsMenu.cameraId,
         this.avSettingsMenu.micId
       );
+    };
+    this.avSettingsMenu.addEventListener("camera-change", (e) => {
+      handleDeviceChange("camera", this.avSettingsMenu.cameraId);
     });
     this.avSettingsMenu.addEventListener("mic-change", (e) => {
-      if (!this.avSettingsMenu.micId) return;
-      window.localStorage.setItem("multimodal-mic", this.avSettingsMenu.micId);
-      this.setMediaDevices(
-        this.avSettingsMenu.cameraId,
-        this.avSettingsMenu.micId
-      );
+      handleDeviceChange("mic", this.avSettingsMenu.micId);
     });
   }
   _beginRecord() {
-    const options = {};
-    this.recorder = new MediaRecorder(this.cameraStream, options);
+    this.recorder = new MediaRecorder(this.cameraStream, {});
     this.recorder.addEventListener("error", (e) => {
       console.error("MediaRecorder error:", e.error);
     });
     this.recorder.addEventListener("dataavailable", (e) => {
-      console.log("chunk: ", e.data.size, e.data.type);
       this.chunks.push(e.data);
     });
     this.recorder.addEventListener("start", () => {
-      console.log("Recording started");
     });
     this.recorder.start();
   }
@@ -165,18 +177,22 @@ var VideoClipperElement = class extends HTMLElement {
       this.chunks = [];
     } else {
       setTimeout(() => {
-        console.log("chunks: ", this.chunks.length);
         const blob = new Blob(this.chunks, { type: this.chunks[0].type });
         const event = new BlobEvent("data", {
           data: blob
         });
-        this.dispatchEvent(event);
-        this.chunks = [];
+        try {
+          this.dispatchEvent(event);
+        } finally {
+          this.chunks = [];
+        }
       }, 0);
     }
   }
 };
 customElements.define("video-clipper", VideoClipperElement);
+
+// srcts/avSettingsMenu.ts
 var DeviceChangeEvent = class extends CustomEvent {
   constructor(type, detail) {
     super(type, { detail });
@@ -189,95 +205,97 @@ var AVSettingsMenuElement = class extends HTMLElement {
       if (e.target instanceof HTMLAnchorElement) {
         const a = e.target;
         if (a.classList.contains("camera-device-item")) {
-          this.setSelectedDevices(a.dataset.deviceId, void 0);
-          this.dispatchEvent(
-            new DeviceChangeEvent("camera-change", {
-              deviceId: a.dataset.deviceId
-            })
-          );
+          this.cameraId = a.dataset.deviceId;
         } else if (a.classList.contains("mic-device-item")) {
-          this.setSelectedDevices(void 0, a.dataset.deviceId);
-          this.dispatchEvent(
-            new DeviceChangeEvent("mic-change", {
-              deviceId: a.dataset.deviceId
-            })
-          );
+          this.micId = a.dataset.deviceId;
         }
       }
     });
   }
-  setDevices(cameras, mics) {
-    const cameraEls = cameras.map((dev) => {
-      const li = this.ownerDocument.createElement("li");
-      const a = li.appendChild(this.ownerDocument.createElement("a"));
-      a.onclick = (e) => e.preventDefault();
-      a.href = "#";
-      a.textContent = dev.label;
-      a.dataset.deviceId = dev.deviceId;
-      a.className = "camera-device-item";
-      return li;
-    });
-    const cameraHeader = this.querySelector(".camera-header");
-    cameraHeader.after(...cameraEls);
-    const micEls = mics.map((dev) => {
-      const li = this.ownerDocument.createElement("li");
-      const a = li.appendChild(this.ownerDocument.createElement("a"));
-      a.onclick = (e) => e.preventDefault();
-      a.href = "#";
-      a.textContent = dev.label;
-      a.dataset.deviceId = dev.deviceId;
-      a.className = "mic-device-item";
-      return li;
-    });
-    const micHeader = this.querySelector(".mic-header");
-    micHeader.after(...micEls);
+  #setDevices(deviceType, devices) {
+    const deviceEls = devices.map(
+      (dev) => this.#createDeviceElement(dev, `${deviceType}-device-item`)
+    );
+    const header = this.querySelector(`.${deviceType}-header`);
+    header.after(...deviceEls);
   }
-  setSelectedDevices(cameraId, micId) {
-    if (cameraId) {
-      this.querySelectorAll("a.camera-device-item.active").forEach(
-        (a) => a.classList.remove("active")
-      );
-      this.querySelector(
-        `a.camera-device-item[data-device-id="${cameraId}"]`
-      )?.classList.add("active");
-    }
-    if (micId) {
-      this.querySelectorAll("a.mic-device-item.active").forEach(
-        (a) => a.classList.remove("active")
-      );
-      this.querySelector(
-        `a.mic-device-item[data-device-id="${micId}"]`
-      )?.classList.add("active");
-    }
+  setCameras(cameras) {
+    this.#setDevices("camera", cameras);
+  }
+  setMics(mics) {
+    this.#setDevices("mic", mics);
   }
   get cameraId() {
-    return this.querySelector("a.camera-device-item.active")?.dataset.deviceId;
+    return this.#getSelectedDevice("camera");
+  }
+  set cameraId(id) {
+    this.#setSelectedDevice("camera", id);
   }
   get micId() {
-    return this.querySelector("a.mic-device-item.active")?.dataset.deviceId;
+    return this.#getSelectedDevice("mic");
+  }
+  set micId(id) {
+    this.#setSelectedDevice("mic", id);
+  }
+  #createDeviceElement(dev, className) {
+    const li = this.ownerDocument.createElement("li");
+    const a = li.appendChild(this.ownerDocument.createElement("a"));
+    a.onclick = (e) => e.preventDefault();
+    a.href = "#";
+    a.textContent = dev.label;
+    a.dataset.deviceId = dev.deviceId;
+    a.className = className;
+    return li;
+  }
+  #getSelectedDevice(device) {
+    return this.querySelector(
+      `a.${device}-device-item.active`
+    )?.dataset.deviceId ?? null;
+  }
+  #setSelectedDevice(device, id) {
+    this.querySelectorAll(`a.${device}-device-item.active`).forEach(
+      (a) => a.classList.remove("active")
+    );
+    if (id) {
+      this.querySelector(
+        `a.${device}-device-item[data-device-id="${id}"]`
+      ).classList.add("active");
+    }
+    this.dispatchEvent(
+      new DeviceChangeEvent(`${device}-change`, {
+        deviceId: id
+      })
+    );
   }
 };
 customElements.define("av-settings-menu", AVSettingsMenuElement);
+
+// srcts/index.ts
 var VideoClipperBinding = class extends Shiny.InputBinding {
-  constructor() {
-    super(...arguments);
-    this.lastKnownValue = /* @__PURE__ */ new WeakMap();
-  }
+  #lastKnownValue = /* @__PURE__ */ new WeakMap();
+  #handlers = /* @__PURE__ */ new WeakMap();
   find(scope) {
     return $(scope).find("video-clipper");
   }
   getValue(el) {
-    return this.lastKnownValue.get(el);
+    return this.#lastKnownValue.get(el);
   }
   subscribe(el, callback) {
-    el.addEventListener("data", async (ev) => {
+    const handler = async (ev) => {
       const blob = ev.data;
-      this.lastKnownValue.set(el, {
+      this.#lastKnownValue.set(el, {
         type: blob.type,
         bytes: await base64(blob)
       });
       callback(true);
-    });
+    };
+    el.addEventListener("data", handler);
+    this.#handlers.set(el, handler);
+  }
+  unsubscribe(el) {
+    const handler = this.#handlers.get(el);
+    el.removeEventListener("data", handler);
+    this.#handlers.delete(el);
   }
 };
 window.Shiny.inputBindings.register(new VideoClipperBinding(), "video-clipper");
@@ -290,13 +308,4 @@ async function base64(blob) {
     results.push(String.fromCharCode(...new Uint8Array(chunk)));
   }
   return btoa(results.join(""));
-}
-async function retry(fn, delayMillis = 0) {
-  while (true) {
-    const result = fn();
-    if (result !== null && result !== void 0) {
-      return result;
-    }
-    await new Promise((resolve) => setTimeout(resolve, delayMillis));
-  }
 }
