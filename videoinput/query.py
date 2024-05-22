@@ -9,6 +9,36 @@ from .utils import NamedTemporaryFile, file_to_data_uri, timed
 # Load OpenAI API key from .env file
 dotenv.load_dotenv()
 
+TERSE_PROMPT = """
+The user you're responding to is EXTREMELY busy and cannot waste a single
+second. Above all, answers must be as concise as possible. Every wasted word
+will result in a huge deduction of points. In fact, use the absolute minimum
+number of words while still technically answering the question. Avoid
+adjectives, adverbs, fill words, and qualifiers.
+"""
+
+EXTRA_TERSE_PROMPT = """
+Definitely don't restate any part of the question in your answer, if it can
+possibly be avoided. Don't speak in complete sentences. Just get to the point as
+quickly as possible.
+"""
+
+SUBJECT_PROMPT = """
+If the user refers to "I" or "me" in the text input, you should assume that's
+referring to the most prominent person in the video.
+
+If the user refers to "you" in the text input, you should assume that's
+referring to you, the AI model.
+"""
+
+VIDEO_PROMPT = """
+The images are frames of a video at 2 frames per second. The user doesn't know
+the video is split into frames, so make sure your video refers to these images
+collectively as "the video", not "the images" or "the video frames".
+"""
+
+SYSTEM_PROMPT = VIDEO_PROMPT + SUBJECT_PROMPT + TERSE_PROMPT
+
 
 async def process_video(
     client: AsyncOpenAI, filepath: str, callback: Optional[Callable[[str], None]]
@@ -51,8 +81,7 @@ async def process_video(
                     "content": [
                         {
                             "type": "text",
-                            "text": "The images are frames of a video at 2 frames per second. "
-                            "The user doesn't know the video is split into frames, ",
+                            "text": SYSTEM_PROMPT,
                         }
                     ],
                 },
