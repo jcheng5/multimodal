@@ -2,6 +2,17 @@ from typing import Callable, Optional
 
 import dotenv
 from openai import AsyncOpenAI
+import requests
+import torch
+from PIL import Image
+from io import BytesIO
+
+from transformers import AutoProcessor, AutoModelForVision2Seq
+from transformers.image_utils import load_image
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics2-8b")
+model = AutoModelForVision2Seq.from_pretrained("HuggingFaceM4/idefics2-8b").to(DEVICE)
 
 from .input import decode_input
 from .utils import NamedTemporaryFile, file_to_data_uri, timed
@@ -71,20 +82,14 @@ async def process_video(
         images = [file_to_data_uri(filename, "image/jpeg") for filename in input.images]
 
         callback("Querying")
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
+
+        prompt = processor.apply_chat_template(
+            [
                 {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": transcription.text},
-                        *[
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": image, "detail": "auto"},
-                            }
-                            for image in images
-                        ],
+                        *[{"type": "image"} for image in images],
                     ],
                 },
                 {
@@ -97,13 +102,25 @@ async def process_video(
                     ],
                 },
             ],
+            add_generation_prompt=True,
         )
+        inputs = processor(
+            text=prompt,
+            images=[load_image(image) for image in images],
+            return_tensors="pt",
+        )
+        inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
+        generated_ids = model.generate(**inputs, max_new_tokens=500)
+        generated_texts = processor.batch_decode(
+            generated_ids, skip_special_tokens=True
+        )
+        print("".join(generated_texts))
 
         callback("Converting to speech")
         audio = await client.audio.speech.create(
             model="tts-1",
             voice="nova",
-            input=response.choices[0].message.content,
+            input="".join(generated_texts),
             response_format="mp3",
         )
 
