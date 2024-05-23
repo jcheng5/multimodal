@@ -1,16 +1,14 @@
 import base64
 import tempfile
 
-from faicons import icon_svg
 from openai import AsyncOpenAI
 from shiny.express import input, render, ui
 
-from videoinput import input_video_clip, process_video
+from videoinput import audio_spinner, input_video_clip, process_video
 
 client = AsyncOpenAI()
 
-with ui.h1():
-    "GPT-4o Video to Audio"
+ui.page_opts(class_="py-5")
 
 input_video_clip("clip")
 
@@ -34,12 +32,7 @@ async def show_clip():
                 filename,
                 callback=lambda status: p.set(message=status),
             )
-            return ui.tags.audio(
-                src=mp3_data_uri,
-                controls=True,
-                autoplay=True,
-                style="display: block; margin: 0 auto; visibility: hidden;",
-            )
+            return audio_spinner(src=mp3_data_uri)
 
 
 def get_video_extension(mime_type: str) -> str:

@@ -1,8 +1,14 @@
+import math
 from pathlib import Path
 
 from faicons import icon_svg
 from htmltools import HTMLDependency
 from shiny import module, ui
+
+__all__ = (
+    "input_video_clip",
+    "audio_spinner",
+)
 
 multimodal_dep = HTMLDependency(
     "multimodal",
@@ -49,8 +55,7 @@ def input_video_clip(id: str, **kwargs):
             slot="settings",
         ),
         ui.div(
-            ui.input_action_button(
-                "record",
+            ui.tags.button(
                 ui.TagList(
                     ui.tags.div(
                         style="display: inline-block; background-color: red; width: 1rem; height: 1rem; border-radius: 100%; position: relative; top: 0.175rem; margin-right: 0.3rem;"
@@ -58,11 +63,9 @@ def input_video_clip(id: str, **kwargs):
                     "Record",
                 ),
                 style="display: block;",
-                class_="record-button btn-secondary px-3 mx-auto",
-                disabled=True,
+                class_="record-button btn btn-secondary px-3 mx-auto",
             ),
-            ui.input_action_button(
-                "stop",
+            ui.tags.button(
                 ui.TagList(
                     ui.tags.div(
                         style="display: inline-block; background-color: currentColor; width: 1rem; height: 1rem; position: relative; top: 0.175rem; margin-right: 0.3rem;"
@@ -70,8 +73,7 @@ def input_video_clip(id: str, **kwargs):
                     "Stop",
                 ),
                 style="display: block;",
-                class_="stop-button btn-secondary px-3 mx-auto",
-                disabled=True,
+                class_="stop-button btn btn-secondary px-3 mx-auto",
             ),
             slot="recording-controls",
             class_="btn-group",
@@ -79,4 +81,34 @@ def input_video_clip(id: str, **kwargs):
         ),
         id=id,
         **kwargs,
+    )
+
+
+def audio_spinner(
+    *,
+    src: str,
+    spin_velocity: float = 1,
+    gap: float = math.pi / 5,
+    thickness: float = 2.5,
+    min_radius: float = 30,
+    radius_factor: float = 1.8,
+    steps: float = 3,
+    blades: float = 3,
+    **kwargs
+):
+    return ui.Tag(
+        "audio-spinner",
+        multimodal_dep,
+        src=src,
+        style="width: 125px; height: 125px;",
+        class_="mx-auto",
+        **{
+            "data-spin-velocity": spin_velocity,
+            "data-gap": gap,
+            "data-thickness": thickness,
+            "data-min-radius": min_radius,
+            "data-radius-factor": radius_factor,
+            "data-steps": steps,
+            "data-blades": blades,
+        },
     )

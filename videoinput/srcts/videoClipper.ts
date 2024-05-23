@@ -68,7 +68,7 @@ class VideoClipperElement extends HTMLElement {
           slotSettings.assignedElements()[0] as AVSettingsMenuElement;
         await this.#initializeMediaInput();
         if (this.buttonRecord) {
-          this.buttonRecord.disabled = false;
+          this.#setEnabledButton(this.buttonRecord);
         }
       });
 
@@ -91,17 +91,15 @@ class VideoClipperElement extends HTMLElement {
         this.buttonRecord = findButton(".record-button")! as HTMLButtonElement;
         this.buttonStop = findButton(".stop-button")! as HTMLButtonElement;
 
-        this.buttonRecord.disabled = true;
+        this.#setEnabledButton();
 
         this.buttonRecord.addEventListener("click", () => {
-          this.buttonRecord.disabled = true;
-          this.buttonStop.disabled = false;
+          this.#setEnabledButton(this.buttonStop);
           this._beginRecord();
         });
         this.buttonStop.addEventListener("click", () => {
           this._endRecord();
-          this.buttonStop.disabled = true;
-          this.buttonRecord.disabled = false;
+          this.#setEnabledButton(this.buttonRecord);
         });
       });
     })().catch((err) => {
@@ -110,6 +108,13 @@ class VideoClipperElement extends HTMLElement {
   }
 
   disconnectedCallback() {}
+
+  #setEnabledButton(btn?: HTMLButtonElement) {
+    this.buttonRecord.style.display =
+      btn === this.buttonRecord ? "inline-block" : "none";
+    this.buttonStop.style.display =
+      btn === this.buttonStop ? "inline-block" : "none";
+  }
 
   async setMediaDevices(
     cameraId: string | null,

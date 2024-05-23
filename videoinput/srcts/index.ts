@@ -3,6 +3,7 @@ import { BindScope } from "rstudio-shiny/srcts/types/src/shiny/bind";
 // Register custom elements
 import "./videoClipper";
 import "./avSettingsMenu";
+import "./audioSpinner";
 
 // Create input binding to send video clips from <video-clipper> to Shiny
 class VideoClipperBinding extends Shiny.InputBinding {
