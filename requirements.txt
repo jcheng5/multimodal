@@ -1,6 +1,13 @@
+--extra-index-url https://pypi.ngc.nvidia.com
 colorama
 faicons
 ffmpeg-python
 openai
 python-dotenv
 shiny
+nvidia-cuda-runtime-cu12
+nvidia-cudnn
+requests
+torch
+transformers
+pillow
