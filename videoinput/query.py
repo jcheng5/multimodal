@@ -37,7 +37,18 @@ the video is split into frames, so make sure your video refers to these images
 collectively as "the video", not "the images" or "the video frames".
 """
 
-SYSTEM_PROMPT = VIDEO_PROMPT + SUBJECT_PROMPT + TERSE_PROMPT
+SPEAKING_PROMPT = """
+The user is asking you to speak the answer. Make sure your response is in the
+form of a friendly, casual spoken answer, not a formal written one.
+"""
+
+SYSTEM_PROMPT = (
+    VIDEO_PROMPT
+    + SUBJECT_PROMPT
+    + SPEAKING_PROMPT
+    # + TERSE_PROMPT
+    # + EXTRA_TERSE_PROMPT
+)
 
 
 async def process_video(
