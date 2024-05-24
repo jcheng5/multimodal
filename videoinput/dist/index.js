@@ -280,6 +280,7 @@ var AudioSpinnerElement = class extends HTMLElement {
   #analyzer;
   #dataArray;
   #smoother;
+  #lastKnownSeconds = 0;
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
@@ -293,6 +294,7 @@ var AudioSpinnerElement = class extends HTMLElement {
             position: absolute;
             top: 0;
             left: 0;
+            cursor: pointer;
           }
           ::slotted(audio) {
             display: none;
@@ -307,7 +309,6 @@ var AudioSpinnerElement = class extends HTMLElement {
       "slot[name=audio]"
     );
     this.#audio = this.ownerDocument.createElement("audio");
-    this.#audio.autoplay = true;
     this.#audio.controls = false;
     this.#audio.src = this.getAttribute("src");
     this.#audio.slot = "audio";
@@ -315,7 +316,7 @@ var AudioSpinnerElement = class extends HTMLElement {
     this.#audio.addEventListener("play", () => {
       this.#draw();
     });
-    this.#audio.onpause = () => {
+    this.#audio.onended = () => {
       this.style.transition = "opacity 0.5s 1s";
       this.classList.add("fade");
       this.addEventListener("transitionend", () => {
@@ -331,6 +332,13 @@ var AudioSpinnerElement = class extends HTMLElement {
     this.#canvas.height = this.clientHeight * window.devicePixelRatio;
     this.#canvas.style.width = this.clientWidth + "px";
     this.#canvas.style.height = this.clientHeight + "px";
+    this.#canvas.onclick = () => {
+      if (this.#audio.paused) {
+        this.#audio.play();
+      } else {
+        this.#audio.pause();
+      }
+    };
     this.appendChild(this.#canvas);
     canvasSlot.assign(this.#canvas);
     this.#ctx2d = this.#canvas.getContext("2d");
@@ -359,6 +367,7 @@ var AudioSpinnerElement = class extends HTMLElement {
       return dataArray2;
     });
     this.#draw();
+    this.#audio.play();
   }
   #draw() {
     if (!this.isConnected) {
@@ -386,7 +395,8 @@ var AudioSpinnerElement = class extends HTMLElement {
       if (step === steps - 1) {
         this.#drawPie(width, height, 0, Math.PI * 2, this_radius, thickness);
       } else {
-        const seconds = (/* @__PURE__ */ new Date()).getTime() / 1e3;
+        const seconds = this.#lastKnownSeconds && this.#audio.paused && !this.#audio.ended ? this.#lastKnownSeconds : (/* @__PURE__ */ new Date()).getTime() / 1e3;
+        this.#lastKnownSeconds = seconds;
         const startAngle = seconds * spinVelocity % (Math.PI * 2);
         for (let blade = 0; blade < blades; blade++) {
           const angleOffset = Math.PI * 2 / blades * blade;

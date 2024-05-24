@@ -5,6 +5,7 @@ class AudioSpinnerElement extends HTMLElement {
   #analyzer!: AnalyserNode;
   #dataArray!: Float32Array;
   #smoother!: Smoother<Float32Array>;
+  #lastKnownSeconds = 0;
 
   constructor() {
     super();
@@ -19,6 +20,7 @@ class AudioSpinnerElement extends HTMLElement {
             position: absolute;
             top: 0;
             left: 0;
+            cursor: pointer;
           }
           ::slotted(audio) {
             display: none;
@@ -35,7 +37,7 @@ class AudioSpinnerElement extends HTMLElement {
       "slot[name=audio]"
     )! as HTMLSlotElement;
     this.#audio = this.ownerDocument.createElement("audio");
-    this.#audio.autoplay = true;
+    // this.#audio.autoplay = true;
     this.#audio.controls = false;
     this.#audio.src = this.getAttribute("src")!;
     this.#audio.slot = "audio";
@@ -43,7 +45,7 @@ class AudioSpinnerElement extends HTMLElement {
     this.#audio.addEventListener("play", () => {
       this.#draw();
     });
-    this.#audio.onpause = () => {
+    this.#audio.onended = () => {
       this.style.transition = "opacity 0.5s 1s";
       this.classList.add("fade");
       this.addEventListener("transitionend", () => {
@@ -61,6 +63,13 @@ class AudioSpinnerElement extends HTMLElement {
     this.#canvas.height = this.clientHeight * window.devicePixelRatio;
     this.#canvas.style.width = this.clientWidth + "px";
     this.#canvas.style.height = this.clientHeight + "px";
+    this.#canvas.onclick = () => {
+      if (this.#audio.paused) {
+        this.#audio.play();
+      } else {
+        this.#audio.pause();
+      }
+    };
     this.appendChild(this.#canvas);
     canvasSlot.assign(this.#canvas);
     this.#ctx2d = this.#canvas.getContext("2d")!;
@@ -94,6 +103,8 @@ class AudioSpinnerElement extends HTMLElement {
     });
 
     this.#draw();
+
+    this.#audio.play();
   }
 
   #draw() {
@@ -129,7 +140,11 @@ class AudioSpinnerElement extends HTMLElement {
       if (step === steps - 1) {
         this.#drawPie(width, height, 0, Math.PI * 2, this_radius, thickness);
       } else {
-        const seconds = new Date().getTime() / 1000;
+        const seconds =
+          this.#lastKnownSeconds && this.#audio.paused && !this.#audio.ended
+            ? this.#lastKnownSeconds
+            : new Date().getTime() / 1000;
+        this.#lastKnownSeconds = seconds;
         const startAngle = (seconds * spinVelocity) % (Math.PI * 2);
         for (let blade = 0; blade < blades; blade++) {
           const angleOffset = ((Math.PI * 2) / blades) * blade;
