@@ -48,7 +48,7 @@ class VideoClipperElement extends HTMLElement {
             margin: 0.5em;
           }
         </style>
-        <video part="video" muted></video>
+        <video part="video" muted playsinline></video>
         <div class="panel-settings">
           <slot name="settings"></slot>
         </div>
@@ -225,30 +225,30 @@ class VideoClipperElement extends HTMLElement {
     this.recorder.addEventListener("start", () => {
       // console.log("Recording started");
     });
+    this.recorder.addEventListener("stop", () => {
+      // console.log("Recording stopped");
+      if (this.chunks.length === 0) {
+        console.warn("No data recorded");
+        return;
+      }
+
+      const blob = new Blob(this.chunks, { type: this.chunks[0].type });
+
+      // emit blobevent
+      const event = new BlobEvent("data", {
+        data: blob,
+      });
+      try {
+        this.dispatchEvent(event);
+      } finally {
+        this.chunks = [];
+      }
+    });
     this.recorder.start();
   }
 
   _endRecord(emit: boolean = true) {
     this.recorder!.stop();
-    if (!emit) {
-      this.chunks = [];
-    } else {
-      // Use setTimeout to give it a moment to finish processing the last chunk
-      setTimeout(() => {
-        // console.log("chunks: ", this.chunks.length);
-        const blob = new Blob(this.chunks, { type: this.chunks[0].type });
-
-        // emit blobevent
-        const event = new BlobEvent("data", {
-          data: blob,
-        });
-        try {
-          this.dispatchEvent(event);
-        } finally {
-          this.chunks = [];
-        }
-      }, 0);
-    }
   }
 }
 customElements.define("video-clipper", VideoClipperElement);

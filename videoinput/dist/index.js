@@ -41,7 +41,7 @@ var VideoClipperElement = class extends HTMLElement {
             margin: 0.5em;
           }
         </style>
-        <video part="video" muted></video>
+        <video part="video" muted playsinline></video>
         <div class="panel-settings">
           <slot name="settings"></slot>
         </div>
@@ -171,25 +171,25 @@ var VideoClipperElement = class extends HTMLElement {
     });
     this.recorder.addEventListener("start", () => {
     });
+    this.recorder.addEventListener("stop", () => {
+      if (this.chunks.length === 0) {
+        console.warn("No data recorded");
+        return;
+      }
+      const blob = new Blob(this.chunks, { type: this.chunks[0].type });
+      const event = new BlobEvent("data", {
+        data: blob
+      });
+      try {
+        this.dispatchEvent(event);
+      } finally {
+        this.chunks = [];
+      }
+    });
     this.recorder.start();
   }
   _endRecord(emit = true) {
     this.recorder.stop();
-    if (!emit) {
-      this.chunks = [];
-    } else {
-      setTimeout(() => {
-        const blob = new Blob(this.chunks, { type: this.chunks[0].type });
-        const event = new BlobEvent("data", {
-          data: blob
-        });
-        try {
-          this.dispatchEvent(event);
-        } finally {
-          this.chunks = [];
-        }
-      }, 0);
-    }
   }
 };
 customElements.define("video-clipper", VideoClipperElement);
