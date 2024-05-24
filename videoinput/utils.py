@@ -31,6 +31,11 @@ def file_to_data_uri(file_path, mime_type):
         return f"data:{mime_type};base64,{encoded_string}"
 
 
+def bytes_to_data_uri(bytes, mime_type):
+    encoded_string = base64.b64encode(bytes).decode("utf-8")
+    return f"data:{mime_type};base64,{encoded_string}"
+
+
 class NamedTemporaryFile(contextlib.AbstractContextManager):
     """
     tempfile.NamedTemporaryFile with an additional `delete_on_close` parameter.

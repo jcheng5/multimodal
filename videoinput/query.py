@@ -4,7 +4,7 @@ import dotenv
 from openai import AsyncOpenAI
 
 from .input import decode_input
-from .utils import NamedTemporaryFile, file_to_data_uri, timed
+from .utils import bytes_to_data_uri, file_to_data_uri
 
 # Load OpenAI API key from .env file
 dotenv.load_dotenv()
@@ -106,9 +106,4 @@ async def process_video(
             input=response.choices[0].message.content,
             response_format="mp3",
         )
-
-        callback("Encoding audio")
-        with NamedTemporaryFile(suffix=".mp3", delete_on_close=False) as file:
-            file.close()
-            audio.write_to_file(file.name)
-            return file_to_data_uri(file.name, "audio/mpeg")
+        return bytes_to_data_uri(audio.read(), "audio/mpeg")
