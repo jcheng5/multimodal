@@ -102,3 +102,50 @@ async def process_video(
             response_format="mp3",
         )
         return bytes_to_data_uri(audio.read(), "audio/mpeg")
+
+
+async def process_video_ollama(
+    client: AsyncOpenAI, filepath: str, callback: Optional[Callable[[str], None]]
+) -> str:
+    import ollama
+
+    if callback is None:
+        callback = lambda _: None
+
+    callback("Decoding input")
+    input = decode_input(filepath, fps=2)
+
+    with input:
+        callback("Decoding speech")
+        with open(str(input.audio), "rb") as audio_file:
+            transcription = await client.audio.transcriptions.create(
+                model="whisper-1", file=audio_file
+            )
+
+        callback("Processing video")
+        # images = [file_to_data_uri(filename, "image/jpeg") for filename in input.images]
+
+        callback("Querying")
+        response = ollama.chat(
+            model="llava:7b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": transcription.text,
+                    "images": input.images,
+                },
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT,
+                },
+            ],
+        )
+
+        callback("Converting to speech")
+        audio = await client.audio.speech.create(
+            model="tts-1",
+            voice="nova",
+            input=response["message"]["content"],
+            response_format="mp3",
+        )
+        return bytes_to_data_uri(audio.read(), "audio/mpeg")
