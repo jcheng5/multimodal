@@ -53,7 +53,7 @@ SYSTEM_PROMPT = (
 
 async def process_video(
     client: AsyncOpenAI, filepath: str, callback: Optional[Callable[[str], None]]
-) -> None:
+) -> str:
     if callback is None:
         callback = lambda _: None
 
@@ -89,12 +89,7 @@ async def process_video(
                 },
                 {
                     "role": "system",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": SYSTEM_PROMPT,
-                        }
-                    ],
+                    "content": SYSTEM_PROMPT,
                 },
             ],
         )

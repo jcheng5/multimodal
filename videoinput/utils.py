@@ -5,6 +5,9 @@ import contextlib
 import os
 import tempfile
 import time
+from pathlib import  PurePath
+from types import TracebackType
+from typing import IO
 
 import colorama
 
@@ -15,7 +18,7 @@ __all__ = (
 
 
 @contextlib.contextmanager
-def timed(msg):
+def timed(msg: str):
     start = time.perf_counter()
     print(colorama.Style.DIM + f"╔ {msg}" + colorama.Style.RESET_ALL)
     yield
@@ -25,18 +28,18 @@ def timed(msg):
     )
 
 
-def file_to_data_uri(file_path, mime_type):
+def file_to_data_uri(file_path: PurePath | str, mime_type: str):
     with open(file_path, "rb") as file:
         encoded_string = base64.b64encode(file.read()).decode("utf-8")
         return f"data:{mime_type};base64,{encoded_string}"
 
 
-def bytes_to_data_uri(bytes, mime_type):
+def bytes_to_data_uri(bytes: bytes, mime_type: str):
     encoded_string = base64.b64encode(bytes).decode("utf-8")
     return f"data:{mime_type};base64,{encoded_string}"
 
 
-class NamedTemporaryFile(contextlib.AbstractContextManager):
+class NamedTemporaryFile(contextlib.AbstractContextManager[IO[bytes]]):
     """
     tempfile.NamedTemporaryFile with an additional `delete_on_close` parameter.
 
@@ -76,10 +79,15 @@ class NamedTemporaryFile(contextlib.AbstractContextManager):
             errors=errors,
         )
 
-    def __enter__(self) -> tempfile.NamedTemporaryFile:
+    def __enter__(self) -> IO[bytes]:
         return self._file.__enter__()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ):
         self._file.__exit__(exc_type, exc_val, exc_tb)
         if self._needs_manual_delete:
             os.unlink(self._file.name)

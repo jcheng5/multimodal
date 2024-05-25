@@ -1,6 +1,6 @@
-import os
 import tempfile
 from pathlib import Path, PurePath
+from types import TracebackType
 
 import ffmpeg
 
@@ -13,7 +13,7 @@ class DecodedInput:
         self,
         audio: PurePath,
         images: tuple[PurePath, ...],
-        tmpdir: tempfile.TemporaryDirectory,
+        tmpdir: tempfile.TemporaryDirectory[str],
     ):
         self.audio = audio
         self.images = images
@@ -22,12 +22,17 @@ class DecodedInput:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         print("Cleaning up " + self.tmpdir.name)
         self.tmpdir.cleanup()
 
 
-def decode_input(input_path: PurePath, fps: int = 2) -> DecodedInput:
+def decode_input(input_path: PurePath | str, fps: int = 2) -> DecodedInput:
     outdir = tempfile.TemporaryDirectory()
     audio = PurePath(outdir.name) / "audio.mp3"
     (
