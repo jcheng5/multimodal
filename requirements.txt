@@ -4,3 +4,4 @@ ffmpeg-python
 openai
 python-dotenv
 shiny
+ollama

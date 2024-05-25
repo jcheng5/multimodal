@@ -4,7 +4,12 @@ import tempfile
 from openai import AsyncOpenAI
 from shiny.express import input, render, ui
 
-from videoinput import audio_spinner, input_video_clip, process_video
+from videoinput import (
+    audio_spinner,
+    input_video_clip,
+    process_video,
+    process_video_ollama,
+)
 
 client = AsyncOpenAI()
 
@@ -27,7 +32,7 @@ async def show_clip():
 
         with ui.Progress() as p:
 
-            mp3_data_uri = await process_video(
+            mp3_data_uri = await process_video_ollama(
                 client,
                 filename,
                 callback=lambda status: p.set(message=status),
