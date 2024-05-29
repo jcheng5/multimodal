@@ -84,7 +84,7 @@ def response():
     messages = chat_result_messages[:]
 
     # Play the chat response audio, with a cool spinner visualization
-    audio_spinner(src=chat_result_audio)
+    audio_spinner(src=chat_result_audio, autodismiss=False)
 
 
 # Footer with credits and source code link
