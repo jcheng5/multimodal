@@ -1,3 +1,4 @@
+faicons
 ffmpeg-python
 openai
 python-dotenv

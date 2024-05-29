@@ -1,6 +1,6 @@
 # Video in, audio out
 
-This is a [Shiny for Python](https://shiny.posit.co/py/) app for easily interacting with GPT-4o via short webcam recordings.
+This is a Python app written in [Shiny](https://shiny.posit.co/py/), for easily interacting with GPT-4o via short webcam recordings.
 
 ## Installation
 
