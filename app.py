@@ -103,7 +103,7 @@ with ui.panel_fixed(bottom=0, left=0, right=0, height="auto", id="footer"):
             ui.a("Shiny", href="https://shiny.posit.co/py/")
         with ui.div(class_="float-right"):
             with ui.a(
-                href="https://github.com/jcheng/multimodal", style="color: inherit;"
+                href="https://github.com/jcheng5/multimodal", style="color: inherit;"
             ):
                 icon_svg("github", margin_right="0.5em")
                 "View source code"
