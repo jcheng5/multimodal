@@ -9,27 +9,6 @@ from htmltools import css
 # with GPT-4o across multiple video clips.
 messages = []
 
-suggested_prompts = [
-    "“What do you think of the outfit I'm wearing?”",
-    "“Where does it look like I am right now?”",
-    "“Tell me an interesting fact about an object you see in this video.”",
-]
-
-# Use `with ui.hold()` to save this UI for later. We'll use it 
-with ui.hold() as instructions:
-    with ui.card(class_="mt-3 mx-auto", style=css(width="600px", max_width="100%")):
-        with ui.p():
-            ui.strong("Instructions: ")
-            "Record a short video clip to start chatting with GPT-4o. "
-            "After it responds, you can record another clip to continue the "
-            "conversation. Reload the browser to start a new conversation."
-        with ui.p():
-            "Some ideas to get you started:"
-        with ui.tags.ul(class_="mb-0"):
-            for suggestion in suggested_prompts:
-                with ui.tags.li():
-                    suggestion
-
 
 # Add the video clip input control onto the page. We can access the video clip
 # from within functions with @reactive.calc and @render.* decorators, by calling
@@ -73,7 +52,20 @@ def response():
     # If the user hasn't started recording their first video clip, show the
     # instructions.
     if chat_task.status() == "initial":
-        instructions
+        with ui.card(class_="mt-3 mx-auto", style=css(width="600px", max_width="100%")):
+            ui.markdown(
+                """
+                **Instructions:** Record a short video clip to start chatting with GPT-4o.
+                After it responds, you can record another clip to continue the conversation.
+                Reload the browser to start a new conversation.
+
+                Some ideas to get you started:
+
+                * “What do you think of the outfit I'm wearing?”
+                * “Where does it look like I am right now?”
+                * “Tell me an interesting fact about an object you see in this video.”
+                """
+            )
         return
 
     # If there is no video clip (either because the user hasn't recorded one or
@@ -103,7 +95,7 @@ with ui.panel_fixed(bottom=0, left=0, right=0, height="auto", id="footer"):
             ui.a("Shiny", href="https://shiny.posit.co/py/")
         with ui.div(class_="float-right"):
             with ui.a(
-                href="https://github.com/jcheng5/multimodal", style="color: inherit;"
+                href="https://github.com/jcheng5/multimodal"
             ):
                 icon_svg("github", margin_right="0.5em")
                 "View source code"
