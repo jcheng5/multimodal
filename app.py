@@ -18,6 +18,10 @@ input_video_clip(
     reset_on_record=True,
     class_="mt-3 mx-auto",
     style=css(width="600px", max_width="100%"),
+    **{
+        "data-video-bits-per-second": 256000,
+        "audio-bits-per-second": 64000,
+    }
 )
 
 
