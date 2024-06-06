@@ -18,10 +18,8 @@ input_video_clip(
     reset_on_record=True,
     class_="mt-3 mx-auto",
     style=css(width="600px", max_width="100%"),
-    **{
-        "data-video-bits-per-second": 256000,
-        "audio-bits-per-second": 64000,
-    }
+    video_bits_per_second=256000,
+    audio_bits_per_second=64000,
 )
 
 
@@ -98,9 +96,7 @@ with ui.panel_fixed(bottom=0, left=0, right=0, height="auto", id="footer"):
             "Built in Python with "
             ui.a("Shiny", href="https://shiny.posit.co/py/")
         with ui.div(class_="float-right"):
-            with ui.a(
-                href="https://github.com/jcheng5/multimodal"
-            ):
+            with ui.a(href="https://github.com/jcheng5/multimodal"):
                 icon_svg("github", margin_right="0.5em")
                 "View source code"
 
