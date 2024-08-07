@@ -4,7 +4,8 @@ This is a Python app written in [Shiny](https://shiny.posit.co/py/), for easily 
 
 At the time of this writing (late May 2024), GPT-4o is available via OpenAI's chat completion API, but this only takes text and images as input and returns text as output. This app uses speech-to-text and text-to-speech to bridge the gap, allowing you to speak your prompt and provide a webcam feed, and hear the response.
 
-**Live demo:** [https://jcheng.shinyapps.io/multimodal/](https://jcheng.shinyapps.io/multimodal/)
+**Live demo:** [https://jcheng.shinyapps.io/multimodal/](https://jcheng.shinyapps.io/multimodal/)  
+**R version:** [https://github.com/jcheng5/r-multimodal](https://github.com/jcheng5/r-multimodal)
 
 ## Installation
 
