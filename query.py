@@ -62,7 +62,7 @@ async def chat(video_file: str, messages: list[Any], progress: ui.Progress) -> s
 
     progress.set(message="Waiting for response...", value=0.2)
     response = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=[
             *messages,
             {
